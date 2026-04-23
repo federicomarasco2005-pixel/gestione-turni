@@ -6,16 +6,15 @@
     <title>Tabellone Completo Orari</title>
     <style>
         body { font-family: 'Segoe UI', Tahoma, sans-serif; background-color: #f0f2f5; margin: 0; padding: 20px; }
-        .container { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); overflow-x: auto; max-width: 1200px; margin: 0 auto; }
+        .container { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); overflow-x: auto; max-width: 1300px; margin: 0 auto; }
         h2 { color: #1a73e8; text-align: center; margin-top: 0; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; background: white; min-width: 900px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; background: white; min-width: 1000px; }
         th { background: #1a73e8; color: white; padding: 12px; text-transform: uppercase; font-size: 13px; position: sticky; top: 0; }
-        td { border: 1px solid #ddd; padding: 12px 8px; text-align: center; font-size: 14px; font-weight: 500; }
+        td { border: 1px solid #ddd; padding: 12px 8px; text-align: center; font-size: 14px; font-weight: 600; color: #333; }
         tr:nth-child(even) { background-color: #f9f9f9; }
         tr:hover { background-color: #f1f5ff; }
         .btn-back { display: inline-block; margin-bottom: 20px; padding: 10px 20px; background: #6c757d; color: white; text-decoration: none; border-radius: 5px; font-weight: bold; }
-        .status { text-align: center; font-size: 12px; color: #888; }
-        .loading { color: orange; font-weight: bold; }
+        .status { text-align: center; font-size: 13px; color: #28a745; font-weight: bold; margin-bottom: 10px; }
     </style>
 </head>
 <body>
@@ -24,7 +23,7 @@
 
 <div class="container">
     <h2>Tabellone Completo Orari</h2>
-    <p id="stato" class="status loading">Sincronizzazione database in corso...</p>
+    <p id="stato" class="status">Sincronizzazione automatica attiva...</p>
     
     <table id="tabellaCompleta">
         <thead id="testata"></thead>
@@ -33,26 +32,25 @@
 </div>
 
 <script>
-    // --- LINK DIRETTO AL TUO FOGLIO ORARI ---
-    const LINK_ORARI_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTyBo6kFgjH-cfZZa6MqX_xs8AAxcTVO04So_JFoDDGuk-7hwS3-lqer0Wivgi_zelazFV4Yk5syeLn/pub?gid=0&single=true&output=csv";
+    // LINK DATABASE CHE MI HAI PASSATO
+    const LINK_DATABASE = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTyBo6kFgjH-cfZZa6MqX_xs8AAxcTVO04So_JFoDDGuk-7hwS3-lqer0Wivgi_zelazFV4Yk5syeLn/pub?gid=0&single=true&output=csv";
 
-    // Scarica automaticamente i dati quando entri nella pagina
+    // Appena entri nella pagina, scarica i dati dal link sopra
     window.onload = async function() {
         try {
-            const response = await fetch(LINK_ORARI_CSV + "&cb=" + Date.now());
-            const text = await response.text();
+            // Aggiungiamo un numero casuale alla fine per forzare Google a darci i dati nuovi
+            const response = await fetch(LINK_DATABASE + "&nocache=" + Date.now());
+            const csvText = await response.text();
             
-            const dati = trasformaCSV(text);
+            const datiArray = trasformaCSV(csvText);
             
-            if (dati.length > 0) {
-                costruisciTabella(dati);
-                document.getElementById('stato').innerText = "Tabellone aggiornato in tempo reale";
-                document.getElementById('stato').style.color = "green";
-                document.getElementById('stato').classList.remove('loading');
+            if (datiArray.length > 0) {
+                generaTabella(datiArray);
+                document.getElementById('stato').innerText = "✅ Tabellone aggiornato dal database Google";
             }
-        } catch (err) {
-            document.getElementById('stato').innerText = "Errore: Impossibile caricare il database.";
-            console.error(err);
+        } catch (errore) {
+            document.getElementById('stato').innerText = "❌ Errore di collegamento al database";
+            console.error(errore);
         }
     };
 
@@ -64,23 +62,23 @@
         }).filter(r => r.length > 1);
     }
 
-    function costruisciTabella(dati) {
-        const testata = document.getElementById('testata');
-        const corpo = document.getElementById('corpo');
+    function generaTabella(matrice) {
+        const thead = document.getElementById('testata');
+        const tbody = document.getElementById('corpo');
         
-        testata.innerHTML = "";
-        corpo.innerHTML = "";
+        thead.innerHTML = "";
+        tbody.innerHTML = "";
 
-        dati.forEach((riga, index) => {
+        matrice.forEach((riga, i) => {
             const tr = document.createElement('tr');
-            riga.forEach(cella => {
-                const elemento = (index === 0) ? document.createElement('th') : document.createElement('td');
-                elemento.innerHTML = cella.replace(/,/g, "<br>");
-                tr.appendChild(elemento);
+            riga.forEach(testo => {
+                const cella = (i === 0) ? document.createElement('th') : document.createElement('td');
+                // Sostituisce le virgole con un a capo per leggere meglio i turni
+                cella.innerHTML = testo.replace(/,/g, "<br>");
+                tr.appendChild(cella);
             });
-
-            if (index === 0) testata.appendChild(tr);
-            else corpo.appendChild(tr);
+            if (i === 0) thead.appendChild(tr);
+            else tbody.appendChild(tr);
         });
     }
 </script>
