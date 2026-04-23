@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <title>Gestione Orari Personale</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; margin: 0; padding: 20px; }
+        h1 { text-align: center; color: #1a73e8; margin-bottom: 10px; }
+        
+        .header-container {
+            max-width: 1200px;
+            margin: 0 auto 30px auto;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .upload-box, .search-box-container {
+            width: 100%;
+            max-width: 500px;
+            text-align: center;
+        }
+
+        input[type="file"] {
+            padding: 10px;
+            border: 2px dashed #1a73e8;
+            border-radius: 8px;
+            width: 100%;
+            cursor: pointer;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 12px 20px;
+            border: 2px solid #ddd;
+            border-radius: 25px;
+            font-size: 16px;
+            outline: none;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+
+        .search-input:focus {
+            border-color: #1a73e8;
+            box-shadow: 0 0 10px rgba(26,115,232,0.2);
+        }
+
+        .table-container { 
+            background: white; 
+            padding: 10px; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08); 
+            overflow-x: auto;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        table { border-collapse: collapse; width: 100%; min-width: 1000px; }
+        th, td { border: 1px solid #e0e0e0; padding: 12px 8px; text-align: center; font-size: 13px; }
+        
+        th { background-color: #1a73e8; color: white; text-transform: uppercase; letter-spacing: 0.5px; position: sticky; top: 0; }
+        
+        .nome-col { 
+            text-align: left; 
+            font-weight: bold; 
+            background-color: #f8faff !important; 
+            position: sticky; 
+            left: 0; 
+            z-index: 1; 
+            border-right: 3px solid #1a73e8;
+            color: #1a73e8;
+        }
+
+        .riposo { color: #b0b0b0; font-style: italic; background-color: #fafafa; }
+        
+        tr:hover { background-color: #f1f8ff; }
+        
+        .turno-ora { line-height: 1.5; font-weight: 500; }
+
+        /* Stile per stampa */
+        @media print {
+            .header-container { display: none; }
+            body { padding: 0; }
+            .table-container { box-shadow: none; border: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Tabellone Orari Settimanale</h1>
+
+    <div class="header-container">
+        <div class="upload-box">
+            <label style="display:block; margin-bottom:10px; font-weight:bold;">1. Carica il file Excel (orari.xlsx)</label>
+            <input type="file" id="input-excel" accept=".xlsx, .xls">
+        </div>
+
+        <div class="search-box-container">
+            <label style="display:block; margin-bottom:10px; font-weight:bold;">2. Cerca Dipendente</label>
+            <input type="text" id="search-input" class="search-input" placeholder="Inizia a scrivere un nome..." disabled>
+        </div>
+    </div>
+
+    <div class="table-container" id="container-tabella" style="display:none;">
+        <table id="tabella-orari">
+            <thead>
+                <tr id="header-row"></tr>
+            </thead>
+            <tbody id="corpo-tabella"></tbody>
+        </table>
+    </div>
+
+    <script>
+        const inputExcel = document.getElementById('input-excel');
+        const searchInput = document.getElementById('search-input');
+        const containerTabella = document.getElementById('container-tabella');
+
+        inputExcel.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const data = new Uint8Array(event.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                
+                // Converte Excel in Array di Array
+                const righe = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+                
+                if (righe.length > 0) {
+                    costruisciTabella(righe);
+                    containerTabella.style.display = 'block';
+                    searchInput.disabled = false;
+                    searchInput.placeholder = "Cerca tra i dipendenti...";
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        });
+
+        function costruisciTabella(data) {
+            const headerRow = document.getElementById('header-row');
+            const tbody = document.getElementById('corpo-tabella');
+            
+            headerRow.innerHTML = "";
+            tbody.innerHTML = "";
+
+            // Intestazioni (Prima riga dell'Excel)
+            data[0].forEach(testo => {
+                const th = document.createElement('th');8
+                th.innerText = testo || "";
+                headerRow.appendChild(th);
+            });
+
+            // Righe Dati
+            for (let i = 1; i < data.length; i++) {
+                const rigaCorrente = data[i];
+                if (!rigaCorrente || rigaCorrente.length === 0 || !rigaCorrente[0]) continue;
+
+                const tr = document.createElement('tr');
+                
+                rigaCorrente.forEach((valore, index) => {
+                    const td = document.createElement('td');
+                    
+                    if (index === 0) {
+                        td.classList.add('nome-col');
+                        td.innerText = valore;
+                    } else {
+                        if (!valore || valore.toString().toUpperCase() === "RIPOSO" || valore.toString().trim() === "") {
+                            td.classList.add('riposo');
+                            td.innerText = "RIPOSO";
+                        } else {
+                            td.classList.add('turno-ora');
+                            // Gestisce turni spezzati separati da virgola o spazio
+                            td.innerHTML = valore.toString()
+                                .replace(/,/g, "<br>")
+                                .replace(/\s{2,}/g, "<br>"); 
+                        }
+                    }
+                    tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
+            }
+        }
+
+        // Funzione di Filtro/Ricerca
+        searchInput.addEventListener('input', function() {
+            const filtro = this.value.toUpperCase();
+            const righeTabella = document.getElementById('corpo-tabella').getElementsByTagName('tr');
+
+            for (let i = 0; i < righeTabella.length; i++) {
+                const tdNome = righeTabella[i].getElementsByTagName('td')[0];
+                if (tdNome) {
+                    const testoNome = tdNome.textContent || tdNome.innerText;
+                    if (testoNome.toUpperCase().indexOf(filtro) > -1) {
+                        righeTabella[i].style.display = "";
+                    } else {
+                        righeTabella[i].style.display = "none";
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
+
+
+<!-- 
+si potrebbe implementare il controllo di ottimizzazione dei turni 
+controllando eventuali impegni o giornate impegnative(es. se martdi devono arrivare 5 camion nelle ultime 
+due ore non puo esserci 4solo un dipendente a scaricare, il sistema deve 
+avvertire che i dipendenti non sono sufficenti sarebbe bello averlo anche per verificare 
+eventuali problemi quando si fanno i turni e cercare di automatizzare tutti i tempi anche se non necessario
+posssibile proposta da fare al gruppo poli e la prova di un mese 
+per l'iper poli del mio sistema e dopo un mese decidere se accettare un acollaborazione o meno 
+si potrebbe dare ad ogni supermercato questa opportunita e dare un prezzo di circa 50 euro al mese per ogni 100 dipendenti gestiti
+-->
