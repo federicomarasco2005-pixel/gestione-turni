@@ -3,20 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tabellone Completo Turni</title>
+    <title>Tabellone Completo Orari</title>
     <style>
         body { font-family: 'Segoe UI', Tahoma, sans-serif; background-color: #f0f2f5; margin: 0; padding: 20px; }
         .container { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); overflow-x: auto; max-width: 1200px; margin: 0 auto; }
         h2 { color: #1a73e8; text-align: center; margin-top: 0; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; background: white; min-width: 800px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; background: white; min-width: 900px; }
         th { background: #1a73e8; color: white; padding: 12px; text-transform: uppercase; font-size: 13px; position: sticky; top: 0; }
         td { border: 1px solid #ddd; padding: 12px 8px; text-align: center; font-size: 14px; font-weight: 500; }
         tr:nth-child(even) { background-color: #f9f9f9; }
         tr:hover { background-color: #f1f5ff; }
-        .btn-back { display: inline-block; margin-bottom: 20px; padding: 10px 20px; background: #6c757d; color: white; text-decoration: none; border-radius: 5px; font-weight: bold; transition: 0.3s; }
-        .btn-back:hover { background: #5a6268; }
-        .status { text-align: center; font-size: 12px; color: #888; margin-bottom: 10px; }
-        .rip { color: #aaa; font-style: italic; font-weight: normal; }
+        .btn-back { display: inline-block; margin-bottom: 20px; padding: 10px 20px; background: #6c757d; color: white; text-decoration: none; border-radius: 5px; font-weight: bold; }
+        .status { text-align: center; font-size: 12px; color: #888; }
+        .loading { color: orange; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -25,7 +24,7 @@
 
 <div class="container">
     <h2>Tabellone Completo Orari</h2>
-    <p id="stato" class="status">Sincronizzazione database in corso...</p>
+    <p id="stato" class="status loading">Sincronizzazione database in corso...</p>
     
     <table id="tabellaCompleta">
         <thead id="testata"></thead>
@@ -34,36 +33,35 @@
 </div>
 
 <script>
-    // --- IL TUO LINK GOOGLE SHEETS (FOGLIO ORARI) ---
+    // --- LINK DIRETTO AL TUO FOGLIO ORARI ---
     const LINK_ORARI_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTyBo6kFgjH-cfZZa6MqX_xs8AAxcTVO04So_JFoDDGuk-7hwS3-lqer0Wivgi_zelazFV4Yk5syeLn/pub?gid=0&single=true&output=csv";
 
+    // Scarica automaticamente i dati quando entri nella pagina
     window.onload = async function() {
         try {
-            // Scarichiamo i dati freschi (cache buster aggiunto per evitare dati vecchi)
             const response = await fetch(LINK_ORARI_CSV + "&cb=" + Date.now());
             const text = await response.text();
             
             const dati = trasformaCSV(text);
+            
             if (dati.length > 0) {
                 costruisciTabella(dati);
-                document.getElementById('stato').innerText = "Database sincronizzato: " + new Date().toLocaleTimeString();
-            } else {
-                document.getElementById('stato').innerText = "Il database sembra vuoto.";
+                document.getElementById('stato').innerText = "Tabellone aggiornato in tempo reale";
+                document.getElementById('stato').style.color = "green";
+                document.getElementById('stato').classList.remove('loading');
             }
         } catch (err) {
-            document.getElementById('stato').innerText = "Errore di connessione al database.";
+            document.getElementById('stato').innerText = "Errore: Impossibile caricare il database.";
             console.error(err);
         }
     };
 
     function trasformaCSV(testo) {
-        const righe = testo.split(/\r?\n/);
-        return righe.map(riga => {
-            // Gestione corretta delle virgole dentro le celle quotate
+        return testo.split(/\r?\n/).map(riga => {
             return riga.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(cella => 
                 cella.replace(/^"|"$/g, '').trim()
             );
-        }).filter(r => r.length > 1); // Salta righe vuote
+        }).filter(r => r.length > 1);
     }
 
     function costruisciTabella(dati) {
@@ -75,28 +73,14 @@
 
         dati.forEach((riga, index) => {
             const tr = document.createElement('tr');
-            
             riga.forEach(cella => {
-                const tag = (index === 0) ? 'th' : 'td';
-                const elemento = document.createElement(tag);
-                
-                // Formattazione estetica
-                let contenuto = cella.replace(/,/g, "<br>").replace(/\s\s+/g, ' ');
-                
-                if (contenuto.toUpperCase() === "RIPOSO") {
-                    elemento.innerHTML = '<span class="rip">Riposo</span>';
-                } else {
-                    elemento.innerHTML = contenuto;
-                }
-                
+                const elemento = (index === 0) ? document.createElement('th') : document.createElement('td');
+                elemento.innerHTML = cella.replace(/,/g, "<br>");
                 tr.appendChild(elemento);
             });
 
-            if (index === 0) {
-                testata.appendChild(tr);
-            } else {
-                corpo.appendChild(tr);
-            }
+            if (index === 0) testata.appendChild(tr);
+            else corpo.appendChild(tr);
         });
     }
 </script>
