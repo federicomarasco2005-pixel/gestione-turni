@@ -2,213 +2,95 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <title>Gestione Orari Personale</title>
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tabellone Completo Turni</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; margin: 0; padding: 20px; }
-        h1 { text-align: center; color: #1a73e8; margin-bottom: 10px; }
-        
-        .header-container {
-            max-width: 1200px;
-            margin: 0 auto 30px auto;
-            background: white;
-            padding: 20px;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 20px;
-        }
-
-        .upload-box, .search-box-container {
-            width: 100%;
-            max-width: 500px;
-            text-align: center;
-        }
-
-        input[type="file"] {
-            padding: 10px;
-            border: 2px dashed #1a73e8;
-            border-radius: 8px;
-            width: 100%;
-            cursor: pointer;
-        }
-
-        .search-input {
-            width: 100%;
-            padding: 12px 20px;
-            border: 2px solid #ddd;
-            border-radius: 25px;
-            font-size: 16px;
-            outline: none;
-            transition: border-color 0.3s, box-shadow 0.3s;
-        }
-
-        .search-input:focus {
-            border-color: #1a73e8;
-            box-shadow: 0 0 10px rgba(26,115,232,0.2);
-        }
-
-        .table-container { 
-            background: white; 
-            padding: 10px; 
-            border-radius: 12px; 
-            box-shadow: 0 4px 20px rgba(0,0,0,0.08); 
-            overflow-x: auto;
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-
-        table { border-collapse: collapse; width: 100%; min-width: 1000px; }
-        th, td { border: 1px solid #e0e0e0; padding: 12px 8px; text-align: center; font-size: 13px; }
-        
-        th { background-color: #1a73e8; color: white; text-transform: uppercase; letter-spacing: 0.5px; position: sticky; top: 0; }
-        
-        .nome-col { 
-            text-align: left; 
-            font-weight: bold; 
-            background-color: #f8faff !important; 
-            position: sticky; 
-            left: 0; 
-            z-index: 1; 
-            border-right: 3px solid #1a73e8;
-            color: #1a73e8;
-        }
-
-        .riposo { color: #b0b0b0; font-style: italic; background-color: #fafafa; }
-        
-        tr:hover { background-color: #f1f8ff; }
-        
-        .turno-ora { line-height: 1.5; font-weight: 500; }
-
-        /* Stile per stampa */
-        @media print {
-            .header-container { display: none; }
-            body { padding: 0; }
-            .table-container { box-shadow: none; border: none; }
-        }
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f0f2f5; margin: 0; padding: 20px; }
+        .container { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); overflow-x: auto; }
+        h2 { color: #1a73e8; text-align: center; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; background: white; }
+        th { background: #1a73e8; color: white; padding: 12px; text-transform: uppercase; font-size: 14px; sticky: top; }
+        td { border: 1px solid #ddd; padding: 10px; text-align: center; font-size: 14px; font-weight: 500; }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+        tr:hover { background-color: #f1f5ff; }
+        .btn-back { display: inline-block; margin-bottom: 20px; padding: 10px 20px; background: #6c757d; color: white; text-decoration: none; border-radius: 5px; font-weight: bold; }
+        .status { text-align: center; font-size: 12px; color: #888; }
     </style>
 </head>
 <body>
 
-    <h1>Tabellone Orari Settimanale</h1>
+<a href="index.html" class="btn-back">← TORNA AL LOGIN</a>
 
-    <div class="header-container">
-        <div class="upload-box">
-            <label style="display:block; margin-bottom:10px; font-weight:bold;">1. Carica il file Excel (orari.xlsx)</label>
-            <input type="file" id="input-excel" accept=".xlsx, .xls">
-        </div>
+<div class="container">
+    <h2>Tabellone Completo Orari</h2>
+    <p id="stato" class="status">Sincronizzazione dati in corso...</p>
+    
+    <table id="tabellaCompleta">
+        <thead id="testata"></thead>
+        <tbody id="corpo"></tbody>
+    </table>
+</div>
 
-        <div class="search-box-container">
-            <label style="display:block; margin-bottom:10px; font-weight:bold;">2. Cerca Dipendente</label>
-            <input type="text" id="search-input" class="search-input" placeholder="Inizia a scrivere un nome..." disabled>
-        </div>
-    </div>
+<script>
+    // Link al Foglio ORARI (gid=0)
+    const LINK_ORARI_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTyBo6kFgjH-cfZZa6MqX_xs8AAxcTVO04So_JFoDDGuk-7hwS3-lqer0Wivgi_zelazFV4Yk5syeLn/pub?gid=0&single=true&output=csv";
 
-    <div class="table-container" id="container-tabella" style="display:none;">
-        <table id="tabella-orari">
-            <thead>
-                <tr id="header-row"></tr>
-            </thead>
-            <tbody id="corpo-tabella"></tbody>
-        </table>
-    </div>
-
-    <script>
-        const inputExcel = document.getElementById('input-excel');
-        const searchInput = document.getElementById('search-input');
-        const containerTabella = document.getElementById('container-tabella');
-
-        inputExcel.addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = function(event) {
-                const data = new Uint8Array(event.target.result);
-                const workbook = XLSX.read(data, { type: 'array' });
-                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-                
-                // Converte Excel in Array di Array
-                const righe = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
-                
-                if (righe.length > 0) {
-                    costruisciTabella(righe);
-                    containerTabella.style.display = 'block';
-                    searchInput.disabled = false;
-                    searchInput.placeholder = "Cerca tra i dipendenti...";
-                }
-            };
-            reader.readAsArrayBuffer(file);
-        });
-
-        function costruisciTabella(data) {
-            const headerRow = document.getElementById('header-row');
-            const tbody = document.getElementById('corpo-tabella');
+    window.onload = async function() {
+        try {
+            // Aggiungiamo un timestamp per evitare la cache del browser
+            const response = await fetch(LINK_ORARI_CSV + "&cb=" + Date.now());
+            const text = await response.text();
+            const dati = trasformaCSV(text);
             
-            headerRow.innerHTML = "";
-            tbody.innerHTML = "";
+            costruisciTabella(dati);
+            document.getElementById('stato').innerText = "Ultimo aggiornamento: " + new Date().toLocaleTimeString();
+        } catch (err) {
+            document.getElementById('stato').innerText = "Errore nel caricamento del tabellone.";
+            console.error(err);
+        }
+    };
 
-            // Intestazioni (Prima riga dell'Excel)
-            data[0].forEach(testo => {
-                const th = document.createElement('th');8
-                th.innerText = testo || "";
-                headerRow.appendChild(th);
+    function trasformaCSV(testo) {
+        const righe = testo.split(/\r?\n/);
+        return righe.map(riga => {
+            return riga.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(cella => 
+                cella.replace(/^"|"$/g, '').trim()
+            );
+        });
+    }
+
+    function costruisciTabella(dati) {
+        const testata = document.getElementById('testata');
+        const corpo = document.getElementById('corpo');
+        
+        testata.innerHTML = "";
+        corpo.innerHTML = "";
+
+        dati.forEach((riga, index) => {
+            // Se la riga è vuota o ha solo una cella vuota, saltala
+            if (riga.length <= 1 && !riga[0]) return;
+
+            const tr = document.createElement('tr');
+            
+            riga.forEach(cella => {
+                const elemento = (index === 0) ? document.createElement('th') : document.createElement('td');
+                
+                // Formattiamo il testo: sostituiamo le virgole con a capo per pulizia
+                elemento.innerHTML = cella.replace(/,/g, "<br>").replace("RIPOSO", "<span style='color:#999'>RIPOSO</span>");
+                tr.appendChild(elemento);
             });
 
-            // Righe Dati
-            for (let i = 1; i < data.length; i++) {
-                const rigaCorrente = data[i];
-                if (!rigaCorrente || rigaCorrente.length === 0 || !rigaCorrente[0]) continue;
-
-                const tr = document.createElement('tr');
-                
-                rigaCorrente.forEach((valore, index) => {
-                    const td = document.createElement('td');
-                    
-                    if (index === 0) {
-                        td.classList.add('nome-col');
-                        td.innerText = valore;
-                    } else {
-                        if (!valore || valore.toString().toUpperCase() === "RIPOSO" || valore.toString().trim() === "") {
-                            td.classList.add('riposo');
-                            td.innerText = "RIPOSO";
-                        } else {
-                            td.classList.add('turno-ora');
-                            // Gestisce turni spezzati separati da virgola o spazio
-                            td.innerHTML = valore.toString()
-                                .replace(/,/g, "<br>")
-                                .replace(/\s{2,}/g, "<br>"); 
-                        }
-                    }
-                    tr.appendChild(td);
-                });
-                tbody.appendChild(tr);
-            }
-        }
-
-        // Funzione di Filtro/Ricerca
-        searchInput.addEventListener('input', function() {
-            const filtro = this.value.toUpperCase();
-            const righeTabella = document.getElementById('corpo-tabella').getElementsByTagName('tr');
-
-            for (let i = 0; i < righeTabella.length; i++) {
-                const tdNome = righeTabella[i].getElementsByTagName('td')[0];
-                if (tdNome) {
-                    const testoNome = tdNome.textContent || tdNome.innerText;
-                    if (testoNome.toUpperCase().indexOf(filtro) > -1) {
-                        righeTabella[i].style.display = "";
-                    } else {
-                        righeTabella[i].style.display = "none";
-                    }
-                }
+            if (index === 0) {
+                testata.appendChild(tr);
+            } else {
+                corpo.appendChild(tr);
             }
         });
-    </script>
+    }
+</script>
+
 </body>
 </html>
-
 
 <!-- 
 si potrebbe implementare il controllo di ottimizzazione dei turni 
