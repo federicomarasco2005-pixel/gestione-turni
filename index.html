@@ -6,7 +6,7 @@
     <title>Login Orari Personale</title>
     <style>
         body { font-family: 'Segoe UI', Tahoma, sans-serif; background-color: #f0f2f5; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 10px; }
-        .card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 8px 30px rgba(0,0,0,0.1); width: 100%; max-width: 600px; }
+        .card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 8px 30px rgba(0,0,0,0.1); width: 100%; max-width: 500px; }
         h2 { color: #1a73e8; text-align: center; margin-bottom: 5px; }
         p.status { text-align: center; font-size: 12px; color: #888; margin-bottom: 25px; }
         .form-group { margin-bottom: 15px; }
@@ -18,9 +18,9 @@
         
         #area-orario { margin-top: 30px; border-top: 2px solid #eee; padding-top: 20px; display: none; }
         .nome-utente { color: #1a73e8; text-align: center; margin-bottom: 15px; text-transform: uppercase; font-size: 1.4em; }
-        table { width: 100%; border-collapse: collapse; }
-        th { background: #e8f0fe; color: #1a73e8; font-size: 13px; padding: 12px; border: 1px solid #d0d7de; }
-        td { padding: 20px 10px; text-align: center; border: 1px solid #eee; font-weight: 600; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th { background: #e8f0fe; color: #1a73e8; font-size: 13px; padding: 12px; border: 1px solid #d0d7de; text-transform: uppercase; }
+        td { padding: 15px 10px; text-align: center; border: 1px solid #eee; font-weight: 600; font-size: 16px; color: #333; }
         .loading-dots:after { content: ' .'; animation: dots 1s steps(5, end) infinite;}
         @keyframes dots { 0%, 20% { color: rgba(0,0,0,0); text-shadow: .5em 0 0 rgba(0,0,0,0), 1em 0 0 rgba(0,0,0,0); } 40% { color: #888; text-shadow: .5em 0 0 rgba(0,0,0,0), 1em 0 0 rgba(0,0,0,0); } 60% { text-shadow: .5em 0 0 #888, 1em 0 0 rgba(0,0,0,0); } 80%, 100% { text-shadow: .5em 0 0 #888, 1em 0 0 #888; } }
     </style>
@@ -34,7 +34,7 @@
     <div id="login-form">
         <div class="form-group">
             <label>Utente (Cognome Nome)</label>
-            <input type="text" id="userLogin" placeholder="es: marasco federico">
+            <input type="text" id="userLogin" placeholder="es: MARASCO FEDERICO">
         </div>
 
         <div class="form-group">
@@ -58,15 +58,16 @@
 </div>
 
 <script>
-    // --- LINK GOOGLE SHEETS (CSV) FORNITI ---
+    // --- LINK GOOGLE SHEETS AGGIORNATI ---
     const LINK_ORARI_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTyBo6kFgjH-cfZZa6MqX_xs8AAxcTVO04So_JFoDDGuk-7hwS3-lqer0Wivgi_zelazFV4Yk5syeLn/pub?gid=0&single=true&output=csv";
-    const LINK_PASS_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTyBo6kFgjH-cfZZa6MqX_xs8AAxcTVO04So_JFoDDGuk-7hwS3-lqer0Wivgi_zelazFV4Yk5syeLn/pub?output=csv";
+    const LINK_PASS_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTyBo6kFgjH-cfZZa6MqX_xs8AAxcTVO04So_JFoDDGuk-7hwS3-lqer0Wivgi_zelazFV4Yk5syeLn/pub?gid=486220238&single=true&output=csv";
 
     let foglioOrari = [];
     let foglioPassword = [];
 
     window.onload = async function() {
         try {
+            // cb=Date.now() serve a evitare che il browser carichi versioni vecchie
             const [resOrari, resPass] = await Promise.all([
                 fetch(LINK_ORARI_CSV + "&cb=" + Date.now()),
                 fetch(LINK_PASS_CSV + "&cb=" + Date.now())
@@ -78,13 +79,13 @@
             foglioOrari = trasformaCSV(textOrari);
             foglioPassword = trasformaCSV(textPass);
 
-            document.getElementById('stato-caricamento').innerText = "Database Online Sincronizzato";
+            document.getElementById('stato-caricamento').innerText = "Database Pronto";
             document.getElementById('stato-caricamento').classList.remove('loading-dots');
             document.getElementById('btnLogin').innerText = "ACCEDI";
             document.getElementById('btnLogin').disabled = false;
         } catch (err) {
-            document.getElementById('stato-caricamento').innerText = "Errore di connessione!";
-            console.error(err);
+            document.getElementById('stato-caricamento').innerText = "Errore connessione!";
+            console.error("Errore:", err);
         }
     };
 
@@ -106,23 +107,23 @@
             return;
         }
 
-        // Cerca nel foglio password (UTENTE col 0, PASSWORD col 1)
+        // Controllo nel foglio password (UTENTE col 0, PASSWORD col 1)
         const utenteValido = foglioPassword.find(r => 
-            r[0] && r[0].toLowerCase() === userIn && r[1] && r[1].toString() === passIn
+            r[0] && r[0].toLowerCase().trim() === userIn && r[1] && r[1].toString().trim() === passIn
         );
 
         if (utenteValido) {
-            // Cerca negli orari
-            const rigaOrari = foglioOrari.find((r, i) => i > 0 && r[0] && r[0].toLowerCase().includes(userIn));
+            // Cerchiamo gli orari (riga 0 è l'intestazione)
+            const rigaOrari = foglioOrari.find((r, i) => i > 0 && r[0] && r[0].toLowerCase().trim().includes(userIn));
             
             if (rigaOrari) {
                 document.getElementById('login-form').style.display = 'none';
                 mostraTurni(foglioOrari[0], rigaOrari);
             } else {
-                alert("Login ok, ma orario non trovato per questo utente.");
+                alert("Login riuscito, ma non abbiamo trovato turni per te questa settimana.");
             }
         } else {
-            alert("Nome utente o Password errati.");
+            alert("Nome utente o Password errati. Riprova.");
         }
     }
 
@@ -132,10 +133,13 @@
         document.getElementById('displayNome').innerText = turni[0];
         testata.innerHTML = ""; corpo.innerHTML = "";
 
+        let contatore = 0;
         for (let j = 1; j < header.length; j++) {
             let valore = turni[j];
+            // Se la cella è vuota o riposo, la saltiamo
             if (!valore || valore.toUpperCase() === "RIPOSO" || valore === "") continue;
             
+            contatore++;
             const th = document.createElement('th');
             th.innerText = header[j];
             testata.appendChild(th);
@@ -144,7 +148,12 @@
             td.innerHTML = valore.replace(/,/g, "<br>").replace(" ", "<br>");
             corpo.appendChild(td);
         }
-        document.getElementById('area-orario').style.display = "block";
+        
+        if(contatore > 0) {
+            document.getElementById('area-orario').style.display = "block";
+        } else {
+            alert("Risulti a RIPOSO tutta la settimana!");
+        }
     }
 
     function accessoAmministratore() {
