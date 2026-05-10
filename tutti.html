@@ -3,18 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tabellone Completo Orari</title>
+    <title>Tabellone Orari con Controllo Ore (AI)</title>
     <style>
         body { font-family: 'Segoe UI', Tahoma, sans-serif; background-color: #f0f2f5; margin: 0; padding: 20px; }
-        .container { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); overflow-x: auto; max-width: 1300px; margin: 0 auto; }
+        .container { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); overflow-x: auto; max-width: 1400px; margin: 0 auto; }
         h2 { color: #1a73e8; text-align: center; margin-top: 0; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; background: white; min-width: 1000px; }
-        th { background: #1a73e8; color: white; padding: 12px; text-transform: uppercase; font-size: 13px; position: sticky; top: 0; }
-        td { border: 1px solid #ddd; padding: 12px 8px; text-align: center; font-size: 14px; font-weight: 600; color: #333; }
-        tr:nth-child(even) { background-color: #f9f9f9; }
-        tr:hover { background-color: #f1f5ff; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; background: white; }
+        th { background: #1a73e8; color: white; padding: 12px; text-transform: uppercase; font-size: 12px; position: sticky; top: 0; }
+        td { border: 1px solid #ddd; padding: 10px; text-align: center; font-size: 13px; font-weight: 600; }
+        
+        /* Colore Rosso per chi fa meno di 40 ore */
+        .sotto-soglia { background-color: #ffcccc !important; color: #b71c1c; }
+        .ore-badge { padding: 4px 8px; border-radius: 4px; background: #eee; font-size: 12px; }
+        
         .btn-back { display: inline-block; margin-bottom: 20px; padding: 10px 20px; background: #6c757d; color: white; text-decoration: none; border-radius: 5px; font-weight: bold; }
-        .status { text-align: center; font-size: 13px; color: #28a745; font-weight: bold; margin-bottom: 10px; }
+        .status { text-align: center; font-size: 13px; margin-bottom: 10px; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -23,7 +26,7 @@
 
 <div class="container">
     <h2>Tabellone Completo Orari</h2>
-    <p id="stato" class="status">Sincronizzazione automatica attiva...</p>
+    <p id="stato" class="status" style="color: #1a73e8;">Analisi intelligente delle ore in corso...</p>
     
     <table id="tabellaCompleta">
         <thead id="testata"></thead>
@@ -32,66 +35,84 @@
 </div>
 
 <script>
-    // LINK DATABASE CHE MI HAI PASSATO
     const LINK_DATABASE = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTyBo6kFgjH-cfZZa6MqX_xs8AAxcTVO04So_JFoDDGuk-7hwS3-lqer0Wivgi_zelazFV4Yk5syeLn/pub?gid=0&single=true&output=csv";
 
-    // Appena entri nella pagina, scarica i dati dal link sopra
     window.onload = async function() {
         try {
-            // Aggiungiamo un numero casuale alla fine per forzare Google a darci i dati nuovi
             const response = await fetch(LINK_DATABASE + "&nocache=" + Date.now());
             const csvText = await response.text();
-            
             const datiArray = trasformaCSV(csvText);
-            
-            if (datiArray.length > 0) {
-                generaTabella(datiArray);
-                document.getElementById('stato').innerText = "✅ Tabellone aggiornato dal database Google";
-            }
-        } catch (errore) {
-            document.getElementById('stato').innerText = "❌ Errore di collegamento al database";
-            console.error(errore);
+            if (datiArray.length > 0) generaTabella(datiArray);
+        } catch (e) {
+            document.getElementById('stato').innerText = "❌ Errore database";
         }
     };
 
     function trasformaCSV(testo) {
         return testo.split(/\r?\n/).map(riga => {
-            return riga.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(cella => 
-                cella.replace(/^"|"$/g, '').trim()
-            );
+            return riga.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(cella => cella.replace(/^"|"$/g, '').trim());
         }).filter(r => r.length > 1);
+    }
+
+    // FUNZIONE "AI" PER CALCOLARE LE ORE DA UNA STRINGA (es. "08:00-14:00")
+    function calcolaOreSertimana(riga) {
+        let totale = 0;
+        for (let i = 1; i < riga.length; i++) {
+            let cella = riga[i].replace(/\s/g, '');
+            if (cella.includes("-")) {
+                let parti = cella.split("-");
+                let inizio = parti[0].split(":");
+                let fine = parti[1].split(":");
+                
+                let hInizio = parseInt(inizio[0]) + (inizio[1] ? parseInt(inizio[1])/60 : 0);
+                let hFine = parseInt(fine[0]) + (fine[1] ? parseInt(fine[1])/60 : 0);
+                
+                let diff = hFine - hInizio;
+                if (diff < 0) diff += 24; // Gestione turno notte
+                totale += diff;
+            }
+        }
+        return totale;
     }
 
     function generaTabella(matrice) {
         const thead = document.getElementById('testata');
         const tbody = document.getElementById('corpo');
-        
-        thead.innerHTML = "";
-        tbody.innerHTML = "";
+        thead.innerHTML = ""; tbody.innerHTML = "";
 
         matrice.forEach((riga, i) => {
             const tr = document.createElement('tr');
+            
+            // Aggiungiamo le celle normali
             riga.forEach(testo => {
                 const cella = (i === 0) ? document.createElement('th') : document.createElement('td');
-                // Sostituisce le virgole con un a capo per leggere meglio i turni
                 cella.innerHTML = testo.replace(/,/g, "<br>");
                 tr.appendChild(cella);
             });
-            if (i === 0) thead.appendChild(tr);
-            else tbody.appendChild(tr);
+
+            // LOGICA DI CONTROLLO ORE
+            if (i === 0) {
+                // Intestazione nuova colonna
+                const thOre = document.createElement('th');
+                thOre.innerText = "TOTALE ORE";
+                tr.appendChild(thOre);
+                thead.appendChild(tr);
+            } else {
+                // Calcolo ore per il dipendente
+                let oreTotali = calcolaOreSertimana(riga);
+                const tdOre = document.createElement('td');
+                tdOre.innerHTML = `<span class="ore-badge">${oreTotali.toFixed(1)}h</span>`;
+                tr.appendChild(tdOre);
+
+                // EVIDENZIA IN ROSSO SE MENO DI 40 ORE
+                if (oreTotali < 40) {
+                    tr.classList.add('sotto-soglia');
+                }
+                tbody.appendChild(tr);
+            }
         });
+        document.getElementById('stato').innerText = "✅ Analisi completata: Righe rosse = meno di 40 ore";
     }
 </script>
-
 </body>
 </html>
-<!-- 
-si potrebbe implementare il controllo di ottimizzazione dei turni 
-controllando eventuali impegni o giornate impegnative(es. se martdi devono arrivare 5 camion nelle ultime 
-due ore non puo esserci 4solo un dipendente a scaricare, il sistema deve 
-avvertire che i dipendenti non sono sufficenti sarebbe bello averlo anche per verificare 
-eventuali problemi quando si fanno i turni e cercare di automatizzare tutti i tempi anche se non necessario
-posssibile proposta da fare al gruppo poli e la prova di un mese 
-per l'iper poli del mio sistema e dopo un mese decidere se accettare un acollaborazione o meno 
-si potrebbe dare ad ogni supermercato questa opportunita e dare un prezzo di circa 50 euro al mese per ogni 100 dipendenti gestiti
--->
